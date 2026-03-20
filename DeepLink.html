@@ -1,117 +1,127 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Deep Link Redirect</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Potter Wands Deep Link Launcher</title>
   <style>
+    :root {
+      color-scheme: light;
+      font-family: Arial, sans-serif;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
       display: grid;
       place-items: center;
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
-      color: #222;
+      background: #f5f7fa;
+      color: #111827;
+      padding: 24px;
     }
 
     main {
-      text-align: center;
+      width: min(600px, 100%);
+      background: #ffffff;
+      border: 1px solid #d1d5db;
+      border-radius: 12px;
       padding: 24px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 1.5rem;
+    }
+
+    p {
+      margin: 8px 0;
+      line-height: 1.5;
+    }
+
+    a {
+      color: #1d4ed8;
     }
   </style>
 </head>
 <body>
   <main>
-    <h1>Opening app...</h1>
-    <p id="status">Please wait while we redirect you.</p>
+    <h1>Opening Potter Wands App</h1>
+    <p id="status">Attempting to open the app...</p>
+    <p>If nothing happens, <a id="manual-open-link" href="#">tap here</a>.</p>
   </main>
 
   <script>
     (function () {
-      "use strict";
+      const pageUrl = new URL(window.location.href);
+      const APP_SCHEME = pageUrl.searchParams.get("appscheme") || "potterwands";
+      const APP_PATH = pageUrl.searchParams.get("apppath") || "open";
+      const FALLBACK_DELAY_MS = 1800;
+      const ANDROID_STORE_HOME = "https://play.google.com/store";
+      const IOS_STORE_HOME = "https://apps.apple.com";
 
-      const CONFIG = {
-        appScheme: "yourapp",
-        appPath: "open",
-        androidPackage: "com.example.app",
-        androidStoreHome: "https://play.google.com/store",
-        iosStoreHome: "https://apps.apple.com/"
+      const statusElement = document.getElementById("status");
+      const manualOpenLink = document.getElementById("manual-open-link");
+
+      const setStatus = function (message) {
+        if (statusElement) {
+          statusElement.textContent = message;
+        }
       };
 
-      const statusEl = document.getElementById("status");
+      const currentUrl = window.location.href;
+      const incomingParams = new URLSearchParams(pageUrl.search);
+
+      // Pass all incoming arguments plus the complete source URL.
+      incomingParams.set("source", currentUrl);
+
+      const query = incomingParams.toString();
+      const hash = window.location.hash || "";
+      const deepLinkUrl = APP_SCHEME + "://" + APP_PATH + (query ? "?" + query : "") + hash;
+
+      if (manualOpenLink) {
+        manualOpenLink.href = deepLinkUrl;
+      }
+
+      let pageWasHidden = false;
+      const markHidden = function () {
+        pageWasHidden = true;
+      };
+
+      document.addEventListener("visibilitychange", function () {
+        if (document.hidden) {
+          markHidden();
+        }
+      });
+      window.addEventListener("pagehide", markHidden);
+
       const userAgent = navigator.userAgent || "";
-      const isAndroid = /Android/i.test(userAgent);
-      const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+      const isAndroid = /android/i.test(userAgent);
+      const isIos = /iphone|ipad|ipod/i.test(userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
 
-      function setStatus(message) {
-        if (statusEl) {
-          statusEl.textContent = message;
-        }
-      }
-
-      function buildAppUrl() {
-        const currentUrl = new URL(window.location.href);
-        const appUrl = new URL(CONFIG.appScheme + "://" + CONFIG.appPath);
-
-        appUrl.searchParams.set("sourceUrl", currentUrl.href);
-
-        currentUrl.searchParams.forEach(function (value, key) {
-          appUrl.searchParams.append(key, value);
-        });
-
-        return appUrl.toString();
-      }
-
-      function redirectToStore() {
-        if (isAndroid) {
-          window.location.replace(CONFIG.androidStoreHome);
+      const fallbackToStore = function () {
+        if (pageWasHidden || document.hidden) {
           return;
         }
-
-        if (isIOS) {
-          window.location.replace(CONFIG.iosStoreHome);
-          return;
-        }
-
-        setStatus("This page is intended for Android or iOS devices.");
-      }
-
-      function tryOpenApp() {
-        const appUrl = buildAppUrl();
-        let appOpened = false;
-
-        document.addEventListener("visibilitychange", function () {
-          if (document.hidden) {
-            appOpened = true;
-          }
-        });
-
-        setTimeout(function () {
-          if (!appOpened) {
-            redirectToStore();
-          }
-        }, 1800);
 
         if (isAndroid) {
-          const deepLink = new URL(appUrl);
-          const intentUrl = "intent://" + CONFIG.appPath + deepLink.search +
-            "#Intent;scheme=" + CONFIG.appScheme + ";package=" + CONFIG.androidPackage + ";end";
-          window.location.href = intentUrl;
+          setStatus("App did not open. Redirecting to Google Play...");
+          window.location.replace(ANDROID_STORE_HOME);
           return;
         }
 
-        if (isIOS) {
-          window.location.href = appUrl;
+        if (isIos) {
+          setStatus("App did not open. Redirecting to the App Store...");
+          window.location.replace(IOS_STORE_HOME);
           return;
         }
 
-        redirectToStore();
-      }
+        setStatus("App did not open automatically on this device.");
+      };
 
-      // This is where the link should be handelded in your application.
-      // Read "sourceUrl" and all query arguments from the incoming deep link.
-      tryOpenApp();
+      setStatus("Attempting to open deep link: " + deepLinkUrl);
+      window.location.href = deepLinkUrl;
+      window.setTimeout(fallbackToStore, FALLBACK_DELAY_MS);
     })();
   </script>
 </body>
