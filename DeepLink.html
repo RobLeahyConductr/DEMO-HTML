@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -13,6 +13,7 @@
   <script>
     (function () {
       const deepLinkBase = "conductrtest://open";
+      const playStoreHomeUrl = "https://play.google.com/store";
       const currentUrl = window.location.href;
       const pageUrl = new URL(currentUrl);
       const params = new URLSearchParams(pageUrl.search);
@@ -22,12 +23,35 @@
 
       const query = params.toString();
       const deepLinkUrl = deepLinkBase + (query ? "?" + query : "") + (pageUrl.hash || "");
+      const statusElement = document.getElementById("status");
+      const openAppLink = document.getElementById("open-app-link");
 
-      document.getElementById("open-app-link").href = deepLinkUrl;
-      document.getElementById("status").textContent = "Deep link: " + deepLinkUrl;
+      openAppLink.href = deepLinkUrl;
+      statusElement.textContent = "Deep link: " + deepLinkUrl;
+
+      let appOpened = false;
+      const markAppOpened = function () {
+        appOpened = true;
+      };
+
+      window.addEventListener("pagehide", markAppOpened);
+      window.addEventListener("blur", markAppOpened);
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState === "hidden") {
+          markAppOpened();
+        }
+      });
 
       // Attempt auto-open.
       window.location.href = deepLinkUrl;
+
+      // If app did not open, redirect to Google Play home page.
+      window.setTimeout(function () {
+        if (!appOpened && document.visibilityState === "visible") {
+          statusElement.textContent = "App not detected. Redirecting to Google Play Store...";
+          window.location.replace(playStoreHomeUrl);
+        }
+      }, 1800);
     })();
   </script>
 </body>
