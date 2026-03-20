@@ -1,11 +1,34 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Deep Link Test</title>
 </head>
 <body>
-  <h1>Android Deep Link Test</h1>
-  <a href="conductrtest://open">Open App</a>
+  <h1>Deep Link Test</h1>
+  <p id="status">Preparing deep link...</p>
+  <a id="open-app-link" href="conductrtest://open">Open App</a>
+
+  <script>
+    (function () {
+      const deepLinkBase = "conductrtest://open";
+      const currentUrl = window.location.href;
+      const pageUrl = new URL(currentUrl);
+      const params = new URLSearchParams(pageUrl.search);
+
+      // Ensure the complete source URL is always included.
+      params.set("source", currentUrl);
+
+      const query = params.toString();
+      const deepLinkUrl = deepLinkBase + (query ? "?" + query : "") + (pageUrl.hash || "");
+
+      document.getElementById("open-app-link").href = deepLinkUrl;
+      document.getElementById("status").textContent = "Deep link: " + deepLinkUrl;
+
+      // Attempt auto-open.
+      window.location.href = deepLinkUrl;
+    })();
+  </script>
 </body>
 </html>
